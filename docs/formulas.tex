@@ -1,0 +1,167 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{mathtools}
+
+\geometry{a4paper, left=2cm, right=2cm, top=2cm, bottom=2cm}
+
+\title{Основные формулы для системы Bluetooth навигации в помещениях}
+\author{[Имя автора]}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Модель распространения сигнала}
+
+Для расчета расстояния по RSSI используется модифицированная модель:
+
+\begin{equation}
+RSSI = A - 10n \log_{10}(d)
+\end{equation}
+
+Где:
+\begin{itemize}
+    \item $RSSI$ - уровень принимаемого сигнала
+    \item $A$ - уровень сигнала на расстоянии 1 метра (TX Power)
+    \item $n$ - коэффициент затухания (обычно 2-4 в помещениях)
+    \item $d$ - расстояние до маячка в метрах
+\end{itemize}
+
+Отсюда можно выразить расстояние:
+
+\begin{equation}
+d = 10^{\frac{RSSI - A}{-10n}}
+\end{equation}
+
+\section{Трилатерация}
+
+Для трех маячков с координатами $(x_1, y_1)$, $(x_2, y_2)$, $(x_3, y_3)$ и расстояниями до них $d_1$, $d_2$, $d_3$, решаем систему уравнений:
+
+\begin{equation}
+\begin{cases}
+(x - x_1)^2 + (y - y_1)^2 = d_1^2 \\
+(x - x_2)^2 + (y - y_2)^2 = d_2^2 \\
+(x - x_3)^2 + (y - y_3)^2 = d_3^2
+\end{cases}
+\end{equation}
+
+Преобразуем в систему линейных уравнений:
+
+\begin{equation}
+\begin{cases}
+2(x_2 - x_1)x + 2(y_2 - y_1)y = (x_2^2 - x_1^2) + (y_2^2 - y_1^2) - (d_2^2 - d_1^2) \\
+2(x_3 - x_2)x + 2(y_3 - y_2)y = (x_3^2 - x_2^2) + (y_3^2 - y_2^2) - (d_3^2 - d_2^2)
+\end{cases}
+\end{equation}
+
+Решение системы:
+
+\begin{align}
+x &= \frac{(y_3 - y_1)(d_2^2 - d_1^2 - x_2^2 + x_1^2 - y_2^2 + y_1^2) - (y_2 - y_1)(d_3^2 - d_1^2 - x_3^2 + x_1^2 - y_3^2 + y_1^2)}{2[(x_2 - x_1)(y_3 - y_1) - (x_3 - x_1)(y_2 - y_1)]} \\
+y &= \frac{(x_3 - x_1)(d_2^2 - d_1^2 - x_2^2 + x_1^2 - y_2^2 + y_1^2) - (x_2 - x_1)(d_3^2 - d_1^2 - x_3^2 + x_1^2 - y_3^2 + y_1^2)}{2[(y_2 - y_1)(x_3 - x_1) - (y_3 - y_1)(x_2 - x_1)]}
+\end{align}
+
+\section{Многомерная трилатерация (метод наименьших квадратов)}
+
+Когда доступно более 3 маячков, используется метод наименьших квадратов для улучшения точности:
+
+\begin{equation}
+\min_{x,y} \sum_{i=1}^{n} w_i \cdot (r_i - \sqrt{(x - x_i)^2 + (y - y_i)^2})^2
+\end{equation}
+
+Где:
+\begin{itemize}
+    \item $w_i$ - вес i-го маячка (обратно пропорционален ошибке измерения)
+    \item $r_i$ - измеренное расстояние до i-го маячка
+    \item $(x_i, y_i)$ - координаты i-го маячка
+\end{itemize}
+
+\section{Фильтрация сигналов}
+
+\subsection{Скользящее среднее}
+
+Для сглаживания RSSI-сигнала:
+
+\begin{equation}
+\overline{RSSI}_k = \frac{1}{N} \sum_{i=k-N+1}^{k} RSSI_i
+\end{equation}
+
+\subsection{Фильтр Калмана}
+
+Для фильтрации координат пользователя:
+
+Система уравнений:
+\begin{align}
+\hat{x}_k^- &= F_k \hat{x}_{k-1} + B_k u_k \\
+P_k^- &= F_k P_{k-1} F_k^T + Q_k
+\end{align}
+
+Коэффициент Калмана:
+\begin{equation}
+K_k = \frac{P_k^-}{P_k^- + R_k}
+\end{equation}
+
+Обновление оценки:
+\begin{align}
+\hat{x}_k &= \hat{x}_k^- + K_k(z_k - H_k \hat{x}_k^-) \\
+P_k &= (I - K_k H_k) P_k^-
+\end{align}
+
+Где:
+\begin{itemize}
+    \item $\hat{x}_k$ - оценка состояния в момент k
+    \item $P_k$ - ковариационная матрица ошибки
+    \item $Q_k$ - ковариация процесса шума
+    \item $R_k$ - ковариация измерительного шума
+\end{itemize}
+
+\section{Алгоритм A*}
+
+Функция оценки стоимости:
+\begin{equation}
+f(n) = g(n) + h(n)
+\end{equation}
+
+Где:
+\begin{itemize}
+    \item $f(n)$ - оценка полной стоимости пути через узел n
+    \item $g(n)$ - стоимость пути от начального узла до узла n
+    \item $h(n)$ - эвристическая оценка стоимости от узла n до цели
+\end{itemize}
+
+\subsection{Эвристическая функция (Евклидово расстояние)}
+
+\begin{equation}
+h(n) = \sqrt{(x_n - x_{goal})^2 + (y_n - y_{goal})^2}
+\end{equation}
+
+\section{Модель точности определения местоположения}
+
+\subsection{Оценка точности}
+
+Точность определения местоположения зависит от количества доступных маячков, геометрической конфигурации маячков и качества измерений RSSI:
+
+\begin{equation}
+\sigma_{pos} = \sqrt{\frac{\sum_{i=1}^{n} \sigma_i^2}{n}}
+\end{equation}
+
+Где $\sigma_i$ - ошибка определения расстояния до i-го маячка.
+
+\subsection{Геометрический фактор (GDOP)}
+
+\begin{equation}
+GDOP = \sqrt{\text{trace}((H^T R^{-1} H)^{-1})}
+\end{equation}
+
+Где:
+\begin{itemize}
+    \item $H$ - матрица геометрии (jacobian матрица)
+    \item $R$ - ковариационная матрица измерений
+\end{itemize}
+
+\end{document}
