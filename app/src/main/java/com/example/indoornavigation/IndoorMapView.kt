@@ -47,8 +47,53 @@ class IndoorMapView @JvmOverloads constructor(
     private var currentStep = 0
     private var isAnimating = false
     private val animationHandler = Handler(Looper.getMainLooper())
-    private val animationInterval: Long = 200 // ms
+    private val animationInterval: Long = 1000 // ms
 
+    // Внутри класса IndoorMapView
+    private var pulseRadius = 0f
+    private var pulseAlpha = 255
+    private var isPulsing = false
+    private val pulseHandler = Handler(Looper.getMainLooper())
+    private val pulseRunnable = object : Runnable {
+        override fun run() {
+            if (!isPulsing) return
+
+            // Увеличиваем радиус и уменьшаем прозрачность
+            pulseRadius += 2f
+            pulseAlpha -= 6 // 255 / (300ms / 20ms) примерно 6 за шаг
+            if (pulseAlpha < 0) pulseAlpha = 255 // сброс
+            if (pulseRadius > 60f) pulseRadius = 0f // сброс
+
+            invalidate() // перерисовать
+            pulseHandler.postDelayed(this, 20) // 20 мс = 50 FPS
+        }
+    }
+    private var directionAngle = 0f // угол в градусах
+    private var goalPosition: PointF? = null
+        set(value) {
+            field = value
+            updateDirectionAngle() // обновляем угол при смене цели
+            invalidate()
+        }
+    private fun updateDirectionAngle() {
+        if (userX >= 0 && userY >= 0) {
+            val goal = goalPosition ?: return
+            val deltaX = goal.x - userX
+            val deltaY = goal.y - userY
+            directionAngle = (Math.atan2(deltaY.toDouble(), deltaX.toDouble()) * 180 / Math.PI).toFloat()
+        }
+    }
+    fun startPulseAnimation() {
+        isPulsing = true
+        pulseHandler.post(pulseRunnable)
+    }
+
+    fun stopPulseAnimation() {
+        isPulsing = false
+        pulseRadius = 0f
+        pulseAlpha = 255
+        invalidate()
+    }
     fun updateUserPosition(x: Float, y: Float) {
         this.userX = x
         this.userY = y
@@ -116,10 +161,35 @@ class IndoorMapView @JvmOverloads constructor(
             canvas.drawCircle(it.x, it.y, 25f, paint)
         }
 
-        // Рисуем пользователя
         if (userX >= 0 && userY >= 0) {
-            paint.color = Color.BLUE
+            // Рисуем анимацию пульсации
+            if (isPulsing) {
+                val pulsePaint = Paint(paint).apply {
+                    style = Paint.Style.STROKE
+                    strokeWidth = 6f
+                    color = Color.argb(pulseAlpha, 30, 136, 229) // тот же синий
+                }
+                canvas.drawCircle(userX, userY, pulseRadius, pulsePaint)
+            }
+
+            // Внешнее кольцо (постоянное)
+            paint.color = Color.argb(128, 30, 136, 229) // #1E88E5 с прозрачностью
+            canvas.drawCircle(userX, userY, 30f, paint)
+
+            // Основной кружок
+            paint.color = Color.parseColor("#1E88E5") // Приятный синий
             canvas.drawCircle(userX, userY, 20f, paint)
+
+            // Внутренний кружок
+            paint.color = Color.WHITE
+            canvas.drawCircle(userX, userY, 8f, paint)
+
+            // Подпись "Вы здесь"
+            paint.color = Color.BLACK
+            paint.textSize = 36f
+            paint.textAlign = Paint.Align.CENTER
+            canvas.drawText("Вы здесь", userX, userY - 40f, paint)
+            paint.textAlign = Paint.Align.LEFT
         }
     }
 }

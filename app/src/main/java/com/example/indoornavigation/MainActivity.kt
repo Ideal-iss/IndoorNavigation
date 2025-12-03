@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
-
+        mapView.startPulseAnimation()
         scanButton.setOnClickListener {
             requestRequiredPermissions()
         }
@@ -151,7 +151,9 @@ class MainActivity : AppCompatActivity() {
 
         // Запустить анимацию движения
         mapView.startAnimationAlongPath(path)
+
     }
+
     private fun rssiToDistance(rssi: Int, txPower: Int = -59): Double {
         if (rssi == 0) return 10.0
         return 10.0.pow((txPower - rssi) / (10.0 * 2.0))
